@@ -24,8 +24,18 @@ export default function ExpenseTracker() {
   const [category, setCategory] = useState('Food');
   const [note, setNote] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+const [currentFilter, setCurrentFilter] = useState('All');
+const [filteredExpenses, setFilteredExpenses] = useState<any[]>([]);
 
-  
+const [editModalVisible, setEditModalVisible] = useState(false);
+const [editingExpense, setEditingExpense] = useState<any>(null);
+const [editAmount, setEditAmount] = useState('');
+const [editCategory, setEditCategory] = useState('Food');
+const [editNote, setEditNote] = useState('');
+const [editDate, setEditDate] = useState('');
+
+const FILTERS = ['All', 'This Week', 'This Month'];
+
   const CATEGORIES = ['Food', 'Books', 'Rent', 'Transportation', 'Entertainment', 'Other'];
 
   // Initialize database on app start
@@ -34,23 +44,37 @@ export default function ExpenseTracker() {
     loadExpenses();
   }, []);
 
+ // Apply filter whenever expenses or filter changes
+useEffect(() => {
+  if (expenses.length >= 0) {
+    applyFilter();
+  }
+}, [expenses, currentFilter]);
+
   // Create expenses table if it doesn't exist
   const initDatabase = async () => {
-    try {
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS expenses (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          amount REAL NOT NULL,
-          category TEXT NOT NULL,
-          note TEXT
-        );
-      `);
-      console.log('✅ Database initialized successfully');
-    } catch (error) {
-      console.error('❌ Error initializing database:', error);
-    }
-  };
+  try {
+    // Drop the old table to start fresh
+    await db.execAsync('DROP TABLE IF EXISTS expenses;');
+    console.log('🗑️ Dropped old table');
+    
+    // Create new table with date column
+    await db.execAsync(`
+      CREATE TABLE expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        note TEXT,
+        date TEXT NOT NULL
+      );
+    `);
+    console.log('✅ Database initialized with date column');
+  } catch (error) {
+    console.error('❌ Error initializing database:', error);
+  }
+};
 
+  // Load all expenses from database
   // Load all expenses from database
   const loadExpenses = async () => {
     try {
@@ -61,6 +85,59 @@ export default function ExpenseTracker() {
       console.error('❌ Error loading expenses:', error);
     }
   };
+
+  // Apply date filter
+  const applyFilter = React.useCallback(() => {
+    const today = new Date();
+    let filtered = [...expenses];
+
+    if (currentFilter === 'This Week') {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      
+      filtered = expenses.filter(exp => {
+        const expDate = new Date(exp.date);
+        return expDate >= weekStart;
+      });
+    } else if (currentFilter === 'This Month') {
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      
+      filtered = expenses.filter(exp => {
+        const expDate = new Date(exp.date);
+        return expDate >= monthStart;
+      });
+    }
+
+    setFilteredExpenses(filtered);
+  }, [expenses, currentFilter]);
+
+  // Calculate overall total spending
+const calculateTotals = () => {
+  const overall = filteredExpenses.reduce((sum, expense) => {
+    return sum + parseFloat(expense.amount);
+  }, 0);
+
+  return overall;
+};
+
+// Calculate spending by category
+const calculateCategoryTotals = () => {
+  const categoryTotals: { [key: string]: number } = {};
+  
+  filteredExpenses.forEach(expense => {
+    const cat = expense.category;
+    const amount = parseFloat(expense.amount);
+    
+    if (categoryTotals[cat]) {
+      categoryTotals[cat] += amount;
+    } else {
+      categoryTotals[cat] = amount;
+    }
+  });
+  
+  return categoryTotals;
+};
 
   // Add new expense to database
   const addExpense = async () => {
@@ -76,13 +153,15 @@ export default function ExpenseTracker() {
     }
 
     try {
-      await db.runAsync(
-        'INSERT INTO expenses (amount, category, note) VALUES (?, ?, ?)',
-        [parseFloat(amount), category, note]
-      );
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  await db.runAsync(
+    'INSERT INTO expenses (amount, category, note, date) VALUES (?, ?, ?, ?)',
+    [parseFloat(amount), category, note, today]
+  );
 
-      console.log('✅ Expense added successfully');
-      
+  console.log('✅ Expense added with date:', today);
+
       // Clear form and close modal
       setAmount('');
       setCategory('Food');
@@ -128,15 +207,67 @@ export default function ExpenseTracker() {
     );
   };
 
-  const renderExpenseItem = ({ item }: { item: any }) => (
-    <View style={styles.expenseItem}>
-      <View style={styles.expenseInfo}>
-        <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
-        <Text style={styles.expenseCategory}>{item.category}</Text>
-        {item.note ? (
-          <Text style={styles.expenseNote}>{item.note}</Text>
-        ) : null}
-      </View>
+  // Open edit modal with expense data
+const openEditModal = (expense: any) => {
+  setEditingExpense(expense);
+  setEditAmount(expense.amount.toString());
+  setEditCategory(expense.category);
+  setEditNote(expense.note || '');
+  setEditDate(expense.date);
+  setEditModalVisible(true);
+};
+
+// Update expense in database
+const updateExpense = async () => {
+  if (!editAmount || isNaN(parseFloat(editAmount))) {
+    Alert.alert('Invalid Input', 'Please enter a valid amount');
+    return;
+  }
+
+  if (parseFloat(editAmount) <= 0) {
+    Alert.alert('Invalid Input', 'Amount must be greater than 0');
+    return;
+  }
+
+  try {
+    await db.runAsync(
+      'UPDATE expenses SET amount = ?, category = ?, note = ?, date = ? WHERE id = ?',
+      [parseFloat(editAmount), editCategory, editNote, editDate, editingExpense.id]
+    );
+
+    console.log('✅ Expense updated:', editingExpense.id);
+    
+    // Close modal and refresh
+    setEditModalVisible(false);
+    setEditingExpense(null);
+    loadExpenses();
+    
+    Alert.alert('Success', 'Expense updated successfully!');
+  } catch (error) {
+    console.error('❌ Error updating expense:', error);
+    Alert.alert('Error', 'Failed to update expense');
+  }
+};
+
+const renderExpenseItem = ({ item }: { item: any }) => (
+  <View style={styles.expenseItem}>
+    <View style={styles.expenseInfo}>
+      <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
+      <Text style={styles.expenseCategory}>{item.category}</Text>
+      {item.note ? (
+        <Text style={styles.expenseNote}>{item.note}</Text>
+      ) : null}
+      {item.date ? (
+        <Text style={styles.expenseDate}>{item.date}</Text>
+      ) : null}
+    </View>
+    <View style={styles.expenseActions}>
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={() => openEditModal(item)}
+      >
+        <Text style={styles.editButtonText}>Edit</Text>
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.deleteButton}
         onPress={() => deleteExpense(item.id)}
@@ -144,7 +275,8 @@ export default function ExpenseTracker() {
         <Text style={styles.deleteButtonText}>Delete</Text>
       </TouchableOpacity>
     </View>
-  );
+  </View>
+);
 
   // Main render
   return (
@@ -155,9 +287,55 @@ export default function ExpenseTracker() {
         <Text style={styles.headerSubtitle}>Track your spending</Text>
       </View>
 
+      {/* Filter Buttons */}
+<View style={styles.filterContainer}>
+  {FILTERS.map(filter => (
+    <TouchableOpacity
+      key={filter}
+      onPress={() => setCurrentFilter(filter)}
+      style={[
+        styles.filterButton,
+        currentFilter === filter && styles.filterButtonActive
+      ]}
+    >
+      <Text style={[
+        styles.filterButtonText,
+        currentFilter === filter && styles.filterButtonTextActive
+      ]}>
+        {filter}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+{/* Analytics Section */}
+<View style={styles.analyticsSection}>
+  {/* Overall Total Card */}
+  <View style={styles.totalCard}>
+    <Text style={styles.totalLabel}>Total Spending ({currentFilter})</Text>
+    <Text style={styles.totalAmount}>${calculateTotals().toFixed(2)}</Text>
+    <Text style={styles.totalSubtext}>{filteredExpenses.length} expenses</Text>
+  </View>
+
+  {/* Category Breakdown Card */}
+  {Object.keys(calculateCategoryTotals()).length > 0 && (
+    <View style={styles.categoryCard}>
+      <Text style={styles.categoryTitle}>By Category</Text>
+      {Object.entries(calculateCategoryTotals())
+        .sort((a, b) => b[1] - a[1])
+        .map(([category, total]) => (
+          <View key={category} style={styles.categoryRow}>
+            <Text style={styles.categoryName}>{category}</Text>
+            <Text style={styles.categoryAmount}>${total.toFixed(2)}</Text>
+          </View>
+        ))
+      }
+    </View>
+  )}
+</View>
+
       {/* Expenses List */}
       <FlatList
-        data={expenses}
+        data={filteredExpenses}
         renderItem={renderExpenseItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
@@ -460,4 +638,110 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+  filterContainer: {
+  flexDirection: 'row',
+  padding: 16,
+  gap: 8,
+},
+filterButton: {
+  flex: 1,
+  padding: 12,
+  borderRadius: 8,
+  backgroundColor: '#e5e7eb',
+  alignItems: 'center',
+},
+filterButtonActive: {
+  backgroundColor: '#3b82f6',
+},
+filterButtonText: {
+  fontWeight: '600',
+  color: '#374151',
+  fontSize: 14,
+},
+filterButtonTextActive: {
+  color: 'white',
+},
+expenseDate: {
+  fontSize: 11,
+  color: '#9ca3af',
+  marginTop: 4,
+},
+analyticsSection: {
+  padding: 16,
+  paddingTop: 0,
+},
+totalCard: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+totalLabel: {
+  fontSize: 14,
+  color: '#6b7280',
+  fontWeight: '600',
+  marginBottom: 8,
+},
+totalAmount: {
+  fontSize: 32,
+  fontWeight: 'bold',
+  color: '#3b82f6',
+  marginBottom: 4,
+},
+totalSubtext: {
+  fontSize: 12,
+  color: '#9ca3af',
+},
+categoryCard: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+categoryTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#374151',
+  marginBottom: 12,
+},
+categoryRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingVertical: 8,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f3f4f6',
+},
+categoryName: {
+  fontSize: 14,
+  color: '#374151',
+},
+categoryAmount: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#3b82f6',
+},
+expenseActions: {
+  flexDirection: 'row',
+  gap: 8,
+},
+editButton: {
+  backgroundColor: '#dbeafe',
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderRadius: 8,
+},
+editButtonText: {
+  color: '#3b82f6',
+  fontWeight: '600',
+},
 });
