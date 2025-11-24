@@ -40,9 +40,12 @@ const FILTERS = ['All', 'This Week', 'This Month'];
 
   // Initialize database on app start
   useEffect(() => {
-    initDatabase();
-    loadExpenses();
-  }, []);
+  const setup = async () => {
+    await initDatabase();
+    await loadExpenses();
+  };
+  setup();
+}, []);
 
  // Apply filter whenever expenses or filter changes
 useEffect(() => {
@@ -54,9 +57,12 @@ useEffect(() => {
   // Create expenses table if it doesn't exist
   const initDatabase = async () => {
   try {
-    // Drop the old table to start fresh
+    // Drop the old table
     await db.execAsync('DROP TABLE IF EXISTS expenses;');
     console.log('🗑️ Dropped old table');
+    
+    // Small delay to ensure clean state
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Create new table with date column
     await db.execAsync(`
@@ -69,22 +75,14 @@ useEffect(() => {
       );
     `);
     console.log('✅ Database initialized with date column');
+    
+    // Return true to indicate success
+    return true;
   } catch (error) {
     console.error('❌ Error initializing database:', error);
+    return false;
   }
 };
-
-  // Load all expenses from database
-  // Load all expenses from database
-  const loadExpenses = async () => {
-    try {
-      const allExpenses = await db.getAllAsync('SELECT * FROM expenses ORDER BY id DESC');
-      setExpenses(allExpenses as any[]);
-      console.log('📊 Loaded expenses:', allExpenses.length);
-    } catch (error) {
-      console.error('❌ Error loading expenses:', error);
-    }
-  };
 
   // Apply date filter
   const applyFilter = React.useCallback(() => {
@@ -208,13 +206,16 @@ const calculateCategoryTotals = () => {
   };
 
   // Open edit modal with expense data
+// Open edit modal with expense data
 const openEditModal = (expense: any) => {
+  console.log('🔍 Opening edit modal for:', expense);
   setEditingExpense(expense);
   setEditAmount(expense.amount.toString());
   setEditCategory(expense.category);
   setEditNote(expense.note || '');
   setEditDate(expense.date);
   setEditModalVisible(true);
+  console.log('✅ Edit modal should be visible now');
 };
 
 // Update expense in database
@@ -443,6 +444,102 @@ const renderExpenseItem = ({ item }: { item: any }) => (
           </View>
         </View>
       </Modal>
+{/* Edit Expense Modal */}
+<Modal
+  animationType="slide"
+  transparent={true}
+  visible={editModalVisible}
+  onRequestClose={() => setEditModalVisible(false)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContainer}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.modalTitle}>Edit Expense</Text>
+
+        {/* Amount Input */}
+        <Text style={styles.inputLabel}>Amount ($)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="0.00"
+          placeholderTextColor="#999"
+          value={editAmount}
+          onChangeText={setEditAmount}
+          keyboardType="decimal-pad"
+        />
+
+        {/* Category Selection */}
+        <Text style={styles.inputLabel}>Category</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryContainer}
+        >
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[
+                styles.categoryButton,
+                editCategory === cat && styles.categoryButtonActive
+              ]}
+              onPress={() => setEditCategory(cat)}
+            >
+              <Text
+                style={[
+                  styles.categoryButtonText,
+                  editCategory === cat && styles.categoryButtonTextActive
+                ]}
+              >
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Date Input */}
+        <Text style={styles.inputLabel}>Date (YYYY-MM-DD)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="2025-01-15"
+          placeholderTextColor="#999"
+          value={editDate}
+          onChangeText={setEditDate}
+        />
+
+        {/* Note Input */}
+        <Text style={styles.inputLabel}>Note (Optional)</Text>
+        <TextInput
+          style={[styles.input, styles.noteInput]}
+          placeholder="Add a note..."
+          placeholderTextColor="#999"
+          value={editNote}
+          onChangeText={setEditNote}
+          multiline
+          numberOfLines={3}
+        />
+
+        {/* Action Buttons */}
+        <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={[styles.modalButton, styles.cancelButton]}
+            onPress={() => {
+              setEditModalVisible(false);
+              setEditingExpense(null);
+            }}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modalButton, styles.saveButton]}
+            onPress={updateExpense}
+          >
+            <Text style={styles.saveButtonText}>Update</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  </View>
+</Modal>
     </SafeAreaView>
   );
 }
