@@ -1,21 +1,21 @@
 
-import React, { useState, useEffect } from 'react';
+import * as SQLite from 'expo-sqlite';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
-  Alert,
-  Modal,
-  ScrollView,
-  SafeAreaView,
+  View,
 } from 'react-native';
-import * as SQLite from 'expo-sqlite';
 
 // Import PieChart and BarChart from react-native-chart-kit
-import { PieChart, BarChart } from 'react-native-chart-kit';
+import { PieChart } from 'react-native-chart-kit';
 
 // Import Dimensions for responsive chart width
 import { Dimensions } from 'react-native';
@@ -187,6 +187,7 @@ const getBarChartData = () => {
 };
 
 
+
   filteredExpenses.forEach(expense => {
     const cat = expense.category;
     const amount = parseFloat(expense.amount);
@@ -352,7 +353,7 @@ const renderExpenseItem = ({ item }: { item: any }) => (
         <Text style={styles.headerSubtitle}>Track your spending</Text>
       </View>
 
-      {/* Filter Buttons */}
+{/* Filter Buttons */}
 <View style={styles.filterContainer}>
   {FILTERS.map(filter => (
     <TouchableOpacity
@@ -372,6 +373,26 @@ const renderExpenseItem = ({ item }: { item: any }) => (
     </TouchableOpacity>
   ))}
 </View>
+
+{/* Toggle Pie Chart Button */}
+<View style={styles.toggleContainer}>
+<TouchableOpacity
+  style={[
+    styles.filterButton,
+    showPieChart && styles.filterButtonActive
+  ]}
+  onPress={() => setShowPieChart(!showPieChart)}
+  >
+  <Text style={[
+    styles.filterButtonText,
+    showPieChart && styles.filterButtonTextActive
+  ]}>
+    {showPieChart ? 'Hide' : 'Show'} Pie Chart
+  </Text>
+</TouchableOpacity>
+</View>
+
+
 {/* Analytics Section */}
 <View style={styles.analyticsSection}>
   {/* Overall Total Card */}
@@ -397,6 +418,30 @@ const renderExpenseItem = ({ item }: { item: any }) => (
     </View>
   )}
 </View>
+
+{/* Pie Chart Visualization */}
+{showPieChart && Object.keys(calculateCategoryTotals()).length > 0 && (
+  <View style={styles.chartCard}>
+    <Text style={styles.chartTitle}>Spending by Category</Text>
+  <PieChart
+    data={getPieChartData()}
+    width={screenWidth - 64}
+    height={220}
+    chartConfig={{
+      backgroundColor: '#ffffff',
+      backgroundGradientFrom: '#ffffff',
+      backgroundGradientTo: '#ffffff',
+      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+    }}
+    accessor="population"
+    backgroundColor="transparent"
+    paddingLeft="15"
+    absolute
+  />
+  </View>
+)}
+
+
 
       {/* Expenses List */}
       <FlatList
@@ -882,6 +927,20 @@ categoryRow: {
   borderBottomWidth: 1,
   borderBottomColor: '#f3f4f6',
 },
+
+// Category row left side with dot
+categoryRowLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+categoryDot: {
+  width: 10,
+  height: 10,
+  borderRadius: 5,
+  marginRight: 8,
+},
+
+
 categoryName: {
   fontSize: 14,
   color: '#374151',
@@ -905,5 +964,30 @@ editButtonText: {
   color: '#3b82f6',
   fontWeight: '600',
 },
+
+
+// Chart styles
+toggleContainer: {
+  padding: 16,
+  paddingTop: 0,
+},
+chartCard: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+chartTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#374151',
+  marginBottom: 12,
+},
+
 });
 
