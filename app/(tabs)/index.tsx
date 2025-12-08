@@ -14,8 +14,17 @@ import {
 } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
+// Import PieChart and BarChart from react-native-chart-kit
+import { PieChart, BarChart } from 'react-native-chart-kit';
+
+// Import Dimensions for responsive chart width
+import { Dimensions } from 'react-native';
+
+
 // Open SQLite database
 const db = SQLite.openDatabaseSync('expenses.db');
+// Get screen width for responsive charts
+const screenWidth = Dimensions.get('window').width;
 
 export default function ExpenseTracker() {
   
@@ -34,9 +43,23 @@ const [editCategory, setEditCategory] = useState('Food');
 const [editNote, setEditNote] = useState('');
 const [editDate, setEditDate] = useState('');
 
+// Chart visibility toggle state
+const [showPieChart, setShowPieChart] = useState(true);
+const [showBarChart, setShowBarChart] = useState(false);
+
 const FILTERS = ['All', 'This Week', 'This Month'];
 
   const CATEGORIES = ['Food', 'Books', 'Rent', 'Transportation', 'Entertainment', 'Other'];
+  // Category colors for pie chart
+  const CATEGORY_COLORS: { [key: string]: string } = {
+    'Food': '#3b82f6',
+    'Books': '#10b981',
+    'Rent': '#f59e0b',
+    'Transportation': '#ef4444',
+    'Entertainment': '#8b5cf6',
+    'Other': '#6b7280',
+  };
+
 
   // Initialize database on app start
   useEffect(() => {
@@ -122,7 +145,48 @@ const calculateTotals = () => {
 // Calculate spending by category
 const calculateCategoryTotals = () => {
   const categoryTotals: { [key: string]: number } = {};
+
+// Function to get pie chart data from category totals
+const getPieChartData = () => {
+  const categoryTotals = calculateCategoryTotals();
   
+  return Object.entries(categoryTotals).map(([category, amount]) => ({
+    name: category,
+    population: amount,
+    color: CATEGORY_COLORS[category] || '#6b7280',
+    legendFontColor: '#374151',
+    legendFontSize: 12,
+  }));
+};
+
+
+// Function to prepare bar chart data for daily spending trends
+const getBarChartData = () => {
+  const dailyTotals: { [key: string]: number } = {};
+  
+  filteredExpenses.forEach(expense => {
+    const date = expense.date;
+    const amount = parseFloat(expense.amount);
+    
+    if (dailyTotals[date]) {
+      dailyTotals[date] += amount;
+    } else {
+      dailyTotals[date] = amount;
+    }
+  });
+  
+  const labels = Object.keys(dailyTotals).sort();
+  const data = labels.map(date => dailyTotals[date]);
+  const recentLabels = labels.slice(-7);
+  const recentData = recentLabels.map(date => dailyTotals[date]);
+
+  return {
+    labels,
+    datasets: [{ data }],
+  };
+};
+
+
   filteredExpenses.forEach(expense => {
     const cat = expense.category;
     const amount = parseFloat(expense.amount);
@@ -842,3 +906,4 @@ editButtonText: {
   fontWeight: '600',
 },
 });
+
