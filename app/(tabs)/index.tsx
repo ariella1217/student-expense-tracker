@@ -107,6 +107,20 @@ useEffect(() => {
   }
 };
 
+// Load all expenses from database
+const loadExpenses = async () => {
+  try {
+    const results = await db.getAllAsync('SELECT * FROM expenses ORDER BY date DESC;');
+    setExpenses(results);
+    console.log('✅ Expenses loaded:', results);
+  } catch (error) {
+    console.error('❌ Error loading expenses:', error);
+  }
+};
+
+
+
+
   // Apply date filter
   const applyFilter = React.useCallback(() => {
     const today = new Date();
@@ -142,23 +156,37 @@ const calculateTotals = () => {
   return overall;
 };
 
+
 // Calculate spending by category
 const calculateCategoryTotals = () => {
   const categoryTotals: { [key: string]: number } = {};
+  
+  filteredExpenses.forEach(expense => {
+    const cat = expense.category;
+    const amount = parseFloat(expense.amount);
+    
+    if (categoryTotals[cat]) {
+      categoryTotals[cat] += amount;
+    } else {
+      categoryTotals[cat] = amount;
+    }
+  });
+  
+  return categoryTotals;
+};
 
 // Function to get pie chart data from category totals
 const getPieChartData = () => {
   const categoryTotals = calculateCategoryTotals();
   
   return Object.entries(categoryTotals).map(([category, amount]) => ({
-    name: category,
+    name: category,  // Just the category name
     population: amount,
     color: CATEGORY_COLORS[category] || '#6b7280',
     legendFontColor: '#374151',
     legendFontSize: 12,
   }));
 };
-
 
 // Function to prepare bar chart data for daily spending trends
 const getBarChartData = () => {
@@ -181,26 +209,11 @@ const getBarChartData = () => {
   const recentData = recentLabels.map(date => dailyTotals[date]);
 
   return {
-    labels,
-    datasets: [{ data }],
+    labels: recentLabels,
+    datasets: [{ data: recentData }],
   };
 };
 
-
-
-  filteredExpenses.forEach(expense => {
-    const cat = expense.category;
-    const amount = parseFloat(expense.amount);
-    
-    if (categoryTotals[cat]) {
-      categoryTotals[cat] += amount;
-    } else {
-      categoryTotals[cat] = amount;
-    }
-  });
-  
-  return categoryTotals;
-};
 
   // Add new expense to database
   const addExpense = async () => {
@@ -346,7 +359,11 @@ const renderExpenseItem = ({ item }: { item: any }) => (
 
   // Main render
   return (
-    <SafeAreaView style={styles.container}>
+  <SafeAreaView style={styles.container}>
+    <ScrollView 
+      showsVerticalScrollIndicator={true}
+      contentContainerStyle={{ paddingBottom: 100 }}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Student Expense Tracker</Text>
@@ -649,7 +666,8 @@ const renderExpenseItem = ({ item }: { item: any }) => (
     </View>
   </View>
 </Modal>
-    </SafeAreaView>
+</ScrollView> 
+</SafeAreaView>
   );
 }
 
