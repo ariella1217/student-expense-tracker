@@ -1,50 +1,52 @@
-# Welcome to your Expo app 👋
+# Student Expense Tracker 💰
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native expense tracking app built with Expo that helps students manage their spending with visual insights.
 
-## Get started
+## Features
 
-1. Install dependencies
+- ✅ Add, edit, and delete expenses
+- ✅ Categorize expenses (Food, Books, Rent, Transportation, Entertainment, Other)
+- ✅ Filter expenses by time period (All, This Week, This Month)
+- ✅ **Interactive pie chart** visualization of spending by category
+- ✅ View total spending and category breakdowns
+- ✅ SQLite database for persistent storage
 
-   ```bash
-   npm install
-   ```
+## New Chart Feature
 
-2. Start the app
+This project now includes an interactive pie chart that visualizes your spending breakdown by category. Toggle the chart on/off with the "Show Pie Chart" button. Built with GitHub Copilot assistance.
 
-   ```bash
-   npx expo start
-   ```
+## Setup Instructions
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+1. Clone the repository:
 ```bash
-npm run reset-project
+git clone https://github.com/ariella1217/student-expense-tracker.git
+cd student-expense-tracker
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
+```bash
+npm install
+```
 
-## Learn more
+3. Start the app:
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+4. Run on your device:
+   - Scan the QR code with Expo Go app (iOS/Android)
+   - Press `a` for Android emulator
+   - Press `i` for iOS simulator
+   - Press `w` for web browser
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Technologies Used
 
-## Join the community
+- React Native
+- Expo
+- Expo SQLite
+- react-native-chart-kit (for data visualization)
+- TypeScript
 
-Join our community of developers creating universal apps.
+## Copilot Reflection
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+See `copilot_reflection.md` for details on how GitHub Copilot was used to enhance this project.
